@@ -46,16 +46,6 @@ static const char * const monthnames[12] = {
         "DEC"
 };
 
-static const char *const wdays[7] = {
-        "SUN",
-        "MON",
-        "TUE",
-        "WED",
-        "THU",
-        "FRI",
-        "SAT"
-};
-
 enum token_type {
         TOKEN_DAY_OF_WEEK,
         TOKEN_DAY,
@@ -174,10 +164,8 @@ static int get_next_token(struct tbuf *buf, char **str, int *len)
 
         *len = 0;
         for (;;) {
-                if (special[c] || separators[c]) {
-                        //c = get_next_char(buf);
+                if (special[c] || separators[c])
                         break;
-                }
 
                 ch = charset[c + 1];
                 if (!(ch & (Alpha | Digit)))
@@ -243,8 +231,10 @@ static int compute_tzoffset(char *str, int len, int sign)
                         (str[2] - '0') * 10 +
                         (str[3] - '0');
 
-                return sign == '+' ? offset : -offset;
+                offset = (sign == '+') ? offset : -offset;
         }
+
+        return offset;
 }
 
 /*
@@ -276,7 +266,7 @@ static int tokenise_and_create_tm(struct tbuf *buf, struct tm *tm,
                 goto failed;
 
         ch = charset[c + 1];
-        if (ch & Alpha) {
+        if (ch & Alpha) {       /* Most likely a weekday at the start. */
                 if (!get_next_token(buf, &str_token, &len))
                         goto failed;
 
@@ -303,8 +293,6 @@ static int tokenise_and_create_tm(struct tbuf *buf, struct tm *tm,
         if (tm->tm_mday == -9999)
                 goto failed;
 
-        printf(">>tm_mday:%d\n", tm->tm_mday);
-
         /* month name */
         get_next_char(buf);     /* Consume a character, either a '-' or ' ' */
 
@@ -323,7 +311,6 @@ static int tokenise_and_create_tm(struct tbuf *buf, struct tm *tm,
         }
         if (i == 12)
                 goto failed;
-        printf(">>tm_mon:%d\n", tm->tm_mon);
 
         /* year 2, 4 or >4 digits */
         get_next_char(buf);     /* Consume a character, either a '-' or ' ' */
@@ -345,8 +332,6 @@ static int tokenise_and_create_tm(struct tbuf *buf, struct tm *tm,
                 tm->tm_year -= 1900;
         }
 
-        printf(">>tm_year:%d\n", tm->tm_year);
-
         /** TIME **/
         skip_ws(buf, 0);
         /* hour */
@@ -359,8 +344,6 @@ static int tokenise_and_create_tm(struct tbuf *buf, struct tm *tm,
         tm->tm_hour = to_int(str_token, len);
         if (tm->tm_hour == -9999)
                 goto failed;
-
-        printf(">>tm_hour:%d\n", tm->tm_hour);
 
         /* minutes */
         if (get_current_char(buf) == ':')
@@ -378,7 +361,6 @@ static int tokenise_and_create_tm(struct tbuf *buf, struct tm *tm,
         if (tm->tm_min == -9999)
                 goto failed;
 
-        printf(">>tm_min:%d\n", tm->tm_min);
 
         /* seconds[optional] */
         if (get_current_char(buf) == ':') {
@@ -394,7 +376,6 @@ static int tokenise_and_create_tm(struct tbuf *buf, struct tm *tm,
                 if (tm->tm_sec == -9999)
                         goto failed;
 
-                printf(">>tm_sec:%d\n", tm->tm_sec);
         }
 
         /* timezone */
@@ -403,7 +384,6 @@ static int tokenise_and_create_tm(struct tbuf *buf, struct tm *tm,
         get_next_char(buf);        /* consume '+' or '-' */
 
         if (!get_next_token(buf, &str_token, &len)) {
-                printf("no timezone\n");
                 *tz_offset = 0;
         } else {
                 *tz_offset = compute_tzoffset(str_token, len, c);
@@ -432,7 +412,6 @@ int parse_time(const char *str, time_t *t)
         buf.offset = 0;
         buf.token = &zero_token;
 
-        printf(">>>%s\n", buf.str);
         tokenise_and_create_tm(&buf, &tm, &tzone_offset);
 
         tmp_gmtime = timegm(&tm);

@@ -12,67 +12,29 @@
 #include <stdlib.h>
 
 #include "dtparser.h"
+
+#define TEST_ARR_SZ 7
 int main(void)
 {
-        const char *d1 = "15-OCT-2010 03:19:52 +1100";
-        const char *d2 = " 5-Oct-2010 03:19:52 +1100";
-        const char *d3 = " 3-jan-2009 04:05    -0400";
-        const char *d4 = "Tue, 20 Jun 2017 00:49:38 +0000";
-        const char *d5 = " 3-jan-2009 04:05    +0400";
-        const char *d6 = " 3-jan-09 04:05    -0400";
-        const char *d7 = " 3-jan-09 04:05  ";
-        time_t t = 0;
+        int i;
+        const char *arr[TEST_ARR_SZ] = {
+                "15-OCT-2010 03:19:52 +1100",
+                " 5-Oct-2010 03:19:52 +1100",
+                " 3-jan-2009 04:05    -0400",
+                "Tue, 20 Jun 2017 00:49:38 +0000",
+                " 3-jan-2009 04:05    +0400",
+                " 3-jan-09 04:05    -0400",
+                " 3-jan-09 04:05  "
+        };
 
-        #if 1
-        parse_time(d1, &t);
-        printf(">> %s\n", ctime(&t));
-        printf("\n");
-        printf("----\n");
-        #endif
+        for (i=0; i < TEST_ARR_SZ; i++) {
+                time_t t = 0;
 
-        #if 1
-        parse_time(d2, &t);
-        printf(">> %s\n", ctime(&t));
-        printf("\n");
-        printf("----\n");
-        #endif
-
-
-        #if 1
-        parse_time(d3, &t);
-        printf(">> %s\n", ctime(&t));
-        printf("\n");
-        printf("----\n");
-        #endif
-
-        #if 1
-        parse_time(d4, &t);
-        printf(">> %s\n", ctime(&t));
-        printf("\n");
-        printf("----\n");
-        #endif
-
-        #if 1
-        parse_time(d5, &t);
-        printf(">> %s\n", ctime(&t));
-        printf("\n");
-        printf("----\n");
-        #endif
-
-        #if 1
-        parse_time(d6, &t);
-        printf(">> %s\n", ctime(&t));
-        printf("\n");
-        printf("----\n");
-        #endif
-
-        #if 1
-        parse_time(d7, &t);
-        printf(">> %s\n", ctime(&t));
-        printf("\n");
-        printf("----\n");
-        #endif
+                printf(">> Input : %s\n", arr[i]);
+                parse_time(arr[i], &t);
+                printf(">> Output: %s\n", ctime(&t));
+                printf("-------------\n");
+        }
 
         exit(EXIT_SUCCESS);
-
 }
