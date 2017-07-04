@@ -75,27 +75,9 @@ static const long charset[257] = {
 
 struct tbuf {
         const char *str;
-        struct token *token;
         int len;
         int offset;
 };
-
-struct token {
-        enum token_type type;
-        struct token *next;
-        union {
-                char day_of_week[3]; /* optional  */
-                char day[2];         /* 1 or 2 DIGITS */
-                char month[3];       /* 3 letter month name */
-                char year[5];    /* 4 or more DIGITS of year */
-                char hour[2];        /* 2 DIGITS */
-                char minute[2];      /* 2 DIGITS */
-                char seconds[2];     /* optiona, 2 DIGITS */
-                char zone[5];        /* '+'/'-' followed by 4 DIGITS*/
-        };
-};
-
-static struct token zero_token;
 
 static inline int get_next_char(struct tbuf *buf)
 {
@@ -410,7 +392,6 @@ int parse_time(const char *str, time_t *t)
         buf.str = str;
         buf.len = strlen(str);
         buf.offset = 0;
-        buf.token = &zero_token;
 
         tokenise_and_create_tm(&buf, &tm, &tzone_offset);
 
