@@ -113,6 +113,9 @@ static inline int get_previous_char(struct tbuf *buf)
                 return EOB;
 }
 
+/*
+  TODO: Support comments as per RFC.
+ */
 static int skip_ws(struct tbuf *buf, int skipcomment)
 {
         int c = buf->str[buf->offset];
@@ -253,13 +256,15 @@ static int tokenise_and_create_tm(struct tbuf *buf, struct tm *tm,
                         goto failed;
 
                 /* We might have a weekday token here, which we should skip*/
-                if (len == 3) {
-                        /* The weekday is foll wed by a ',', consume that. */
-                        if (get_current_char(buf) == ',')
-                                get_next_char(buf);
-                        else
-                                goto failed;
-                }
+                if (len != 3)
+                        goto failed;
+
+                /* The weekday is foll wed by a ',', consume that. */
+                if (get_current_char(buf) == ',')
+                        get_next_char(buf);
+                else
+                        goto failed;
+
                 skip_ws(buf, 0);
         }
 
@@ -379,6 +384,9 @@ failed:
 
 }
 
+/*
+  TODO: Expect length of string.
+ */
 int parse_time(const char *str, time_t *t)
 {
         struct tbuf buf;
@@ -389,11 +397,15 @@ int parse_time(const char *str, time_t *t)
         if (!str)
                 goto baddate;
 
+        memset(&tm, 0, sizeof(struct tm));
+        *t = 0;
+
         buf.str = str;
         buf.len = strlen(str);
         buf.offset = 0;
 
-        tokenise_and_create_tm(&buf, &tm, &tzone_offset);
+        if (!tokenise_and_create_tm(&buf, &tm, &tzone_offset))
+                goto baddate;
 
         tmp_gmtime = timegm(&tm);
         if (tmp_gmtime == -1)
