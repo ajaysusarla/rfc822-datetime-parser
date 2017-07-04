@@ -19,18 +19,20 @@ int main(void)
         const char *d3 = " 3-jan-2009 04:05    -0400";
         const char *d4 = "Tue, 20 Jun 2017 00:49:38 +0000";
         const char *d5 = " 3-jan-2009 04:05    +0400";
+        const char *d6 = " 3-jan-09 04:05    -0400";
+        const char *d7 = " 3-jan-09 04:05  ";
         time_t t = 0;
-        int i = 0;
-
 
         #if 1
         parse_time(d1, &t);
+        printf(">> %s\n", ctime(&t));
         printf("\n");
         printf("----\n");
         #endif
 
-        #if 0
+        #if 1
         parse_time(d2, &t);
+        printf(">> %s\n", ctime(&t));
         printf("\n");
         printf("----\n");
         #endif
@@ -38,18 +40,35 @@ int main(void)
 
         #if 1
         parse_time(d3, &t);
+        printf(">> %s\n", ctime(&t));
         printf("\n");
         printf("----\n");
         #endif
 
         #if 1
         parse_time(d4, &t);
+        printf(">> %s\n", ctime(&t));
         printf("\n");
         printf("----\n");
         #endif
 
         #if 1
         parse_time(d5, &t);
+        printf(">> %s\n", ctime(&t));
+        printf("\n");
+        printf("----\n");
+        #endif
+
+        #if 1
+        parse_time(d6, &t);
+        printf(">> %s\n", ctime(&t));
+        printf("\n");
+        printf("----\n");
+        #endif
+
+        #if 1
+        parse_time(d7, &t);
+        printf(">> %s\n", ctime(&t));
         printf("\n");
         printf("----\n");
         #endif

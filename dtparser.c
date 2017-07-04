@@ -18,37 +18,42 @@
 #define EOB (-99999)            /* End Of Buffer */
 static const char special[256] = {
         [' ']  = 1,
-        ['-']  = 1,
-        ['+']  = 1,
-        [',']  = 1,
         ['\t'] = 1,
         ['\r'] = 1,
         ['\n'] = 1,
+};
+
+static const char separators[256] = {
+        [' ']  = 1,
+        [',']  = 1,
+        ['-']  = 1,
+        ['+']  = 1,
         [':']  = 1,
 };
 
-static const char * const monthname[12] = {
-        "Jan",
-        "Feb",
-        "Mar",
-        "Apr",
-        "May",
-        "Jun",
-        "Jul",
-        "Aug",
-        "Sep",
-        "Nov",
-        "Dec"
+static const char * const monthnames[12] = {
+        "JAN",
+        "FEB",
+        "MAR",
+        "APR",
+        "MAY",
+        "JUN",
+        "JUL",
+        "AUG",
+        "SEP",
+        "OCT",
+        "NOV",
+        "DEC"
 };
 
-static const char *const wday[7] = {
-        "Sun",
-        "Mon",
-        "Tue",
-        "Wed",
-        "Thu",
-        "Fri",
-        "Sat"
+static const char *const wdays[7] = {
+        "SUN",
+        "MON",
+        "TUE",
+        "WED",
+        "THU",
+        "FRI",
+        "SAT"
 };
 
 enum token_type {
@@ -64,16 +69,18 @@ enum token_type {
 
 enum {
         Alpha = 1,
-        Digit = 2,
-        TZSign = 4,
+        UAlpha = 2,
+        LAlpha = 4,
+        Digit = 8,
+        TZSign = 16,
 };
 
 static const long charset[257] = {
         ['0' + 1 ... '9' + 1] = Digit,
-        ['A' + 1 ... 'Z' + 1] = Alpha,
-        ['a' + 1 ... 'z' + 1] = Alpha,
-        /* ['+' + 1] = TZSign, */
-        /* ['-' + 1] = TZSign */
+        ['A' + 1 ... 'Z' + 1] = Alpha | UAlpha,
+        ['a' + 1 ... 'z' + 1] = Alpha | LAlpha,
+        ['+' + 1] = TZSign,
+        ['-' + 1] = TZSign
 };
 
 struct tbuf {
@@ -99,27 +106,6 @@ struct token {
 };
 
 static struct token zero_token;
-
-static struct token * token_new(enum token_type type)
-{
-        struct token *t;
-
-        t = calloc(1, sizeof(struct token));
-        if (!t)
-                return &zero_token;
-
-        t->type = type;
-
-        return t;
-}
-
-static void token_free(struct token *token)
-{
-        if (token) {
-                free(token);
-                token = &zero_token;
-        }
-}
 
 static inline int get_next_char(struct tbuf *buf)
 {
@@ -155,17 +141,20 @@ static inline int get_previous_char(struct tbuf *buf)
                 return EOB;
 }
 
-static void skip_ws(struct tbuf *buf)
+static int skip_ws(struct tbuf *buf, int skipcomment)
 {
         int c = buf->str[buf->offset];
 
         while (c != EOB) {
-                if (!isspace(c))
-                        return;
-                c = get_next_char(buf);
+                if (special[c]) {
+                        c = get_next_char(buf);
+                        continue;
+                }
+
+                break;
         }
 
-        return;
+        return 1;
 }
 
 #define MAX_BUF_LEN 32
@@ -174,33 +163,34 @@ static int get_next_token(struct tbuf *buf, char **str, int *len)
         int c, ret = 1;
         long ch;
         static char cache[MAX_BUF_LEN];
-        int i;
 
         memset(cache, 1, MAX_BUF_LEN);
 
         c = get_current_char(buf);
-        if (c == EOB)
+        if (c == EOB) {
+                ret = 0;
                 goto failed;
+        }
 
         *len = 0;
         for (;;) {
-                if (special[c]) {
-                        c = get_next_char(buf);
+                if (special[c] || separators[c]) {
+                        //c = get_next_char(buf);
                         break;
                 }
 
                 ch = charset[c + 1];
-                if (!(ch & (Alpha | Digit))) {
-                        //c = get_next_char(buf);
+                if (!(ch & (Alpha | Digit)))
                         break;
-                }
 
                 cache[*len] = c;
                 *len += 1;
 
                 c = get_next_char(buf);
-                if (c == EOB)
+                if (c == EOB) {
+                        ret = 0;
                         break;
+                }
         }
 
 failed:
@@ -208,175 +198,222 @@ failed:
 
         return ret;
 }
-/*
-  Returns a string, which needs to freed
-  TODO: Use struct token instead
- */
-static char * get_string_token(struct tbuf *buf)
+
+static inline int to_int(char *str, int len)
 {
-        int c, offset;
-        int len = 1;
-        long ch;
-        char str[32] = {0};           /* XXX: Should be bigger? */
+        int i, num = 0;
 
-        offset = buf->offset;
-        c = buf->str[offset];
-        str[0] = c;
-        for (;;) {
-                ch = charset[c + 1];
-                if (!(ch & Alpha))
+        for (i = 0; i<len; i++) {
+                if (charset[str[i] + 1] & Digit)
+                        num = num * 10 + (str[i] - '0');
+                else {
+                        num = -9999;
                         break;
-
-                if (len >= sizeof(str))
-                        break;
-
-                c = get_next_char(buf);
-                if (c == EOB)
-                        break;
-                str[len] = c;
-                len++;
+                }
         }
-
-        /* TODO: Check for NULL */
-        return strdup(str);
-}
-
-static int get_number_token(struct tbuf *buf)
-{
-        int c, offset;
-        int len = 1;
-        int num = 0, i;
-        long ch;
-        char str[32] = {0};     /* XXX: Should be bigger? */
-
-        offset = buf->offset;
-        c = buf->str[offset];
-        str[0] = c;
-        for (;;) {
-                ch = charset[c + 1];
-                if (!(ch & Digit))
-                        break;
-                if (len > sizeof(str))
-                        break;
-                c = get_next_char(buf);
-                if (c == EOB)
-                        break;
-                str[len] = c;
-                len++;
-        }
-
-        for (i=0; i<len; i++)
-                num = num * 10 + (str[i] - '0');
 
         return num;
-
 }
 
-/* struct tm { */
-/*         int tm_sec; */
-/*         int tm_min; */
-/*         int tm_hour; */
-/*         int tm_mday; */
-/*         int tm_mon; */
-/*         int tm_year; */
-/*         int tm_wday; */
-/*         int tm_yday; */
-/*         int tm_isdst; */
+static inline int to_upper(char **str, int len)
+{
+        int i;
 
-/* }; */
+        for (i=0; i<len; i++) {
+                int c = str[0][i];
+                if (charset[c + 1] & LAlpha)
+                        str[0][i] = str[0][i] - 32;
+        }
 
-static int tokenise(struct tbuf *buf, struct tm *tm)
+        return 1;
+}
+
+static int compute_tzoffset(char *str, int len, int sign)
+{
+        int offset = 0;
+        int i;
+
+        for (i = 0; i<len; i++) {
+                if (!(charset[str[i] + 1] & Digit))
+                        return 0;
+        }
+
+        if (len == 4) {         /* The number timezone offset */
+                offset = ((str[0] - '0') * 10 + (str[1] - '0')) * 60 +
+                        (str[2] - '0') * 10 +
+                        (str[3] - '0');
+
+                return sign == '+' ? offset : -offset;
+        }
+}
+
+/*
+  date-time = [ ([FWS] day-name) "," ]
+              ([FWS] 1*2DIGIT FWS)
+              month
+              (FWS 4*DIGIT FWS)
+              2DIGIT ":" 2DIGIT [ ":" 2DIGIT ]
+              (FWS ( "+" / "-" ) 4DIGIT)
+              [CFWS]
+
+   day-name = "Mon" / "Tue" / "Wed" / "Thu" / "Fri" / "Sat" / "Sun"
+   month = "Jan" / "Feb" / "Mar" / "Apr" / "May" / "Jun" / "Jul" / "Aug" /
+           "Sep" / "Oct" / "Nov" / "Dec"
+ */
+
+static int tokenise_and_create_tm(struct tbuf *buf, struct tm *tm,
+                                  int *tz_offset)
 {
         long ch;
-        int c;
+        int c, i, len;
         char *str_token = NULL;
-        int len, offset;
-        int num_token = 0;
-        int ret = 1;
 
         /* Skip leading WS, if any */
-        skip_ws(buf);
+        skip_ws(buf, 0);
 
         c = get_current_char(buf);
-        if (c == EOB) {
-                ret = 0;
+        if (c == EOB)
                 goto failed;
-        }
 
         ch = charset[c + 1];
         if (ch & Alpha) {
+                if (!get_next_token(buf, &str_token, &len))
+                        goto failed;
+
                 /* We might have a weekday token here, which we should skip*/
-                /*
-                str_token = get_string_token(buf);
-                if (str_token && str_token[0] && (strlen(str_token) == 3)) {
-                        int offset = buf->offset;
-
-                        free(str_token);
-
-                        if (buf->str[offset] == ',') {
-                                buf->offset += 1;
-                        } else {
-                                ret = 0;
+                if (len == 3) {
+                        /* The weekday is foll wed by a ',', consume that. */
+                        if (get_current_char(buf) == ',')
+                                get_next_char(buf);
+                        else
                                 goto failed;
-                        }
-
-                        skip_ws(buf);
                 }
-                */
-                //struct token *t = token_new(TOKEN_DAY_OF_WEEK);
-                get_next_token(buf, &str_token, &len);
-                printf(">>>> %s\n", str_token);
-                skip_ws(buf);
+                skip_ws(buf, 0);
         }
 
-        get_next_token(buf, &str_token, &len);
-        printf(">>>> %s\n", str_token);
-
-        skip_ws(buf);
-        get_next_token(buf, &str_token, &len);
-        printf(">>>> %s\n", str_token);
-
-        skip_ws(buf);
-        get_next_token(buf, &str_token, &len);
-        printf(">>>> %s\n", str_token);
-
-        skip_ws(buf);
-        get_next_token(buf, &str_token, &len);
-        printf(">>>> %s\n", str_token);
-
-        skip_ws(buf);
-        get_next_token(buf, &str_token, &len);
-        printf(">>>> %s\n", str_token);
-
-        skip_ws(buf);
-        get_next_token(buf, &str_token, &len);
-        printf(">>>> %s\n", str_token);
-
-        /* Zone */
-        skip_ws(buf);
-        get_next_token(buf, &str_token, &len);
-        printf(">>>> %s\n", str_token);
-
-        /*tm.tm_mday */
-        c = get_next_char(buf);
-        if (c == EOB) {
-                ret = 0;
+        /** DATE **/
+        /* date (1 or 2 digits) */
+        if (!get_next_token(buf, &str_token, &len))
                 goto failed;
-        }
 
-        ch = charset[c + 1];
-        if (!(ch & Digit)) {
-                ret = 0;
+        if (len < 1 || len > 2 || !(charset[str_token[0] + 1] & Digit))
                 goto failed;
+
+        tm->tm_mday = to_int(str_token, len);
+        if (tm->tm_mday == -9999)
+                goto failed;
+
+        printf(">>tm_mday:%d\n", tm->tm_mday);
+
+        /* month name */
+        get_next_char(buf);     /* Consume a character, either a '-' or ' ' */
+
+        if (!get_next_token(buf, &str_token, &len) ||
+            len != 3 ||
+            !(charset[str_token[0] + 1] & Alpha))
+                goto failed;
+
+        to_upper(&str_token, len);
+
+        for (i = 0; i < 12; i++) {
+                if (memcmp(monthnames[i], str_token, 3) == 0) {
+                        tm->tm_mon = i;
+                        break;
+                }
         }
-        //tm->tm_mday = get_number_token(buf);
+        if (i == 12)
+                goto failed;
+        printf(">>tm_mon:%d\n", tm->tm_mon);
 
-        /* tm.tm_mon */
-        if (ch & TZSign)
-                printf("TZSign\n");
+        /* year 2, 4 or >4 digits */
+        get_next_char(buf);     /* Consume a character, either a '-' or ' ' */
 
+        if (!get_next_token(buf, &str_token, &len))
+                goto failed;
+
+        tm->tm_year = to_int(str_token, len);
+        if (tm->tm_year == -9999)
+                goto failed;
+
+        if (len == 2) {
+                /* A 2 digit year */
+                if (tm->tm_year < 70)
+                        tm->tm_year += 100;
+        } else {
+                if (tm->tm_year < 1900)
+                        goto failed;
+                tm->tm_year -= 1900;
+        }
+
+        printf(">>tm_year:%d\n", tm->tm_year);
+
+        /** TIME **/
+        skip_ws(buf, 0);
+        /* hour */
+        if (!get_next_token(buf, &str_token, &len))
+                goto failed;
+
+        if (len < 1 || len > 2 || !(charset[str_token[0] + 1] & Digit))
+                goto failed;
+
+        tm->tm_hour = to_int(str_token, len);
+        if (tm->tm_hour == -9999)
+                goto failed;
+
+        printf(">>tm_hour:%d\n", tm->tm_hour);
+
+        /* minutes */
+        if (get_current_char(buf) == ':')
+                get_next_char(buf); /* Consume ':' */
+        else
+                goto failed;    /* Something is broken */
+
+        if (!get_next_token(buf, &str_token, &len))
+                goto failed;
+
+        if (len < 1 || len > 2 || !(charset[str_token[0] + 1] & Digit))
+                goto failed;
+
+        tm->tm_min = to_int(str_token, len);
+        if (tm->tm_min == -9999)
+                goto failed;
+
+        printf(">>tm_min:%d\n", tm->tm_min);
+
+        /* seconds[optional] */
+        if (get_current_char(buf) == ':') {
+                get_next_char(buf); /* Consume ':' */
+
+                if (!get_next_token(buf, &str_token, &len))
+                        goto failed;
+
+                if (len < 1 || len > 2 || !(charset[str_token[0] + 1] & Digit))
+                        goto failed;
+
+                tm->tm_sec = to_int(str_token, len);
+                if (tm->tm_sec == -9999)
+                        goto failed;
+
+                printf(">>tm_sec:%d\n", tm->tm_sec);
+        }
+
+        /* timezone */
+        skip_ws(buf, 0);
+        c = get_current_char(buf); /* the '+' or '-' in the timezone */
+        get_next_char(buf);        /* consume '+' or '-' */
+
+        if (!get_next_token(buf, &str_token, &len)) {
+                printf("no timezone\n");
+                *tz_offset = 0;
+        } else {
+                *tz_offset = compute_tzoffset(str_token, len, c);
+        }
+
+        /* dst */
+        tm->tm_isdst = -1;
+        return 1;
 failed:
-        return ret;
+        return 0;
 
 }
 
@@ -384,6 +421,8 @@ int parse_time(const char *str, time_t *t)
 {
         struct tbuf buf;
         struct tm tm;
+        time_t tmp_gmtime;
+        int tzone_offset;
 
         if (!str)
                 goto baddate;
@@ -394,16 +433,15 @@ int parse_time(const char *str, time_t *t)
         buf.token = &zero_token;
 
         printf(">>>%s\n", buf.str);
-        #if 0
-        for(;;) {
-                int c = get_next_char(&buf);
-                if (c == EOB)
-                        break;
-                printf("%c:%d\n", c, buf.offset);
-        }
-        #else
-        tokenise(&buf, &tm);
-        #endif
+        tokenise_and_create_tm(&buf, &tm, &tzone_offset);
+
+        tmp_gmtime = timegm(&tm);
+        if (tmp_gmtime == -1)
+                goto baddate;
+
+        *t = tmp_gmtime - tzone_offset * 60;
+
+        return 1;
 
 baddate:
         return -1;
