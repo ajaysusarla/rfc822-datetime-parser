@@ -46,17 +46,6 @@ static const char * const monthnames[12] = {
         "DEC"
 };
 
-enum token_type {
-        TOKEN_DAY_OF_WEEK,
-        TOKEN_DAY,
-        TOKEN_MONTH,
-        TOKEN_YEAR,
-        TOKEN_HOUR,
-        TOKEN_MINUTE,
-        TOKEN_SECONDS,
-        TOKEN_ZONE,
-};
-
 enum {
         Alpha = 1,
         UAlpha = 2,
