@@ -10,10 +10,11 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "dtparser.h"
 
-#define TEST_ARR_SZ 11
+#define TEST_ARR_SZ 16
 
 int main(void)
 {
@@ -30,18 +31,26 @@ int main(void)
                 " 3-jan-09 04:05  ",
                 "foobar, 2 +5000",
                 "Sun, Hello, World!",
-                "-1000"
+                "-1000",
+                "20 Jun 2017 00:49:38 +0000",
+                "15-Oct-95 03:19:52-Z",
+                "15-Oct-95 03:19:52-A",
+                "15-Oct-95 03:19:52-J",
+                "15-Oct-95 03:19:52-Y"
         };
 
         for (i=0; i < TEST_ARR_SZ; i++) {
                 time_t t = 0;
+                int ret;
 
                 printf(">> Input : %s\n", input[i]);
-                if (parse_time(input[i], &t) == 1)
+                ret = parse_time(input[i], &t);
+                if ( ret != -1) {
                         printf(">> Output: %s\n", ctime(&t));
-                else
+                } else {
                         printf(">> Output: FAILED Parsing!\n\n");
-                  }
+                }
+        }
 
         exit(EXIT_SUCCESS);
 }

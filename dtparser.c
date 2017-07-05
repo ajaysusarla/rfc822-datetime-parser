@@ -177,7 +177,7 @@ static inline int to_int(char *str, int len)
         return num;
 }
 
-static inline int to_upper(char **str, int len)
+static inline int to_upper_str_in_place(char **str, int len)
 {
         int i;
 
@@ -190,25 +190,80 @@ static inline int to_upper(char **str, int len)
         return 1;
 }
 
+static inline int to_upper(char ch)
+{
+        if (charset[ch + 1] & LAlpha)
+                ch =  ch - 32;
+
+        return ch;
+}
+
+static inline int to_lower(char ch)
+{
+        if (charset[ch + 1] & UAlpha)
+                ch = ch + 32;
+
+        return ch;
+}
+
 static int compute_tzoffset(char *str, int len, int sign)
 {
         int offset = 0;
-        int i;
 
-        for (i = 0; i<len; i++) {
-                if (!(charset[str[i] + 1] & Digit))
+        if (len == 1) {         /* Military timezone */
+                int ch;
+                ch = to_upper(str[0]);
+                if (ch < 'J')
+                        return (str[0] - 'A' + 1) * 60;
+                if (ch == 'J')
                         return 0;
+                if (ch <= 'M')
+                        return (str[0] - 'A') * 60;;
+                if (ch < 'Z')
+                        return ('M' - str[0]) * 60;
+
+                return 0;
+        }
+
+        if (len == 2 &&
+            to_upper(str[0]) == 'U' &&
+            to_upper(str[1]) == 'T') {         /* Universal Time zone (UT) */
+                return 0;
+        }
+
+        if (len == 3) {
+                char *p;
+
+                if (to_upper(str[2]) != 'T')
+                        return 0;
+
+                p = strchr("AECMPYHB", to_upper(str[0]));
+                if (!p)
+                        return 0;
+                offset = (strlen(p) - 12) *  60;
+
+                if (to_upper(str[1]) == 'D')
+                        return offset + 60;
+                if (to_upper(str[1]) == 'S')
+                        return offset;
         }
 
         if (len == 4) {         /* The number timezone offset */
+                int i;
+
+                for (i = 0; i<len; i++) {
+                        if (!(charset[str[i] + 1] & Digit))
+                                return 0;
+                }
+
                 offset = ((str[0] - '0') * 10 + (str[1] - '0')) * 60 +
                         (str[2] - '0') * 10 +
                         (str[3] - '0');
 
-                offset = (sign == '+') ? offset : -offset;
+                return (sign == '+') ? offset : -offset;
         }
 
-        return offset;
+        return 0;
 }
 
 /*
@@ -277,8 +332,7 @@ static int tokenise_and_create_tm(struct tbuf *buf, struct tm *tm,
             !(charset[str_token[0] + 1] & Alpha))
                 goto failed;
 
-        to_upper(&str_token, len);
-
+        to_upper_str_in_place(&str_token, len);
         for (i = 0; i < 12; i++) {
                 if (memcmp(monthnames[i], str_token, 3) == 0) {
                         tm->tm_mon = i;
@@ -367,9 +421,9 @@ static int tokenise_and_create_tm(struct tbuf *buf, struct tm *tm,
 
         /* dst */
         tm->tm_isdst = -1;
-        return 1;
+        return buf->offset;
 failed:
-        return 0;
+        return -1;
 
 }
 
@@ -393,7 +447,7 @@ int parse_time(const char *str, time_t *t)
         buf.len = strlen(str);
         buf.offset = 0;
 
-        if (!tokenise_and_create_tm(&buf, &tm, &tzone_offset))
+        if (tokenise_and_create_tm(&buf, &tm, &tzone_offset) == -1)
                 goto baddate;
 
         tmp_gmtime = timegm(&tm);
@@ -402,7 +456,7 @@ int parse_time(const char *str, time_t *t)
 
         *t = tmp_gmtime - tzone_offset * 60;
 
-        return 1;
+        return buf.offset;
 
 baddate:
         return -1;
