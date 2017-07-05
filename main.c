@@ -14,7 +14,7 @@
 
 #include "dtparser.h"
 
-#define TEST_ARR_SZ 16
+#define TEST_ARR_SZ 18
 
 int main(void)
 {
@@ -36,7 +36,9 @@ int main(void)
                 "15-Oct-95 03:19:52-Z",
                 "15-Oct-95 03:19:52-A",
                 "15-Oct-95 03:19:52-J",
-                "15-Oct-95 03:19:52-Y"
+                "15-Oct-95 03:19:52-Y",
+               " 3-jan-2009 04.05    -0400",
+                "20 Jun 2017 00.49.38 +0000",
         };
 
         for (i=0; i < TEST_ARR_SZ; i++) {

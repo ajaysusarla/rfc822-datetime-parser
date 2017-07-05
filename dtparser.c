@@ -379,8 +379,9 @@ static int tokenise_and_create_tm(struct tbuf *buf, struct tm *tm,
                 goto failed;
 
         /* minutes */
-        if (get_current_char(buf) == ':')
-                get_next_char(buf); /* Consume ':' */
+        if (get_current_char(buf) == ':' ||
+            get_current_char(buf) == '.')
+                get_next_char(buf); /* Consume ':'/'.' */
         else
                 goto failed;    /* Something is broken */
 
@@ -396,7 +397,8 @@ static int tokenise_and_create_tm(struct tbuf *buf, struct tm *tm,
 
 
         /* seconds[optional] */
-        if (get_current_char(buf) == ':') {
+        if (get_current_char(buf) == ':' ||
+            get_current_char(buf) == '.') {
                 get_next_char(buf); /* Consume ':' */
 
                 if (!get_next_token(buf, &str_token, &len))
