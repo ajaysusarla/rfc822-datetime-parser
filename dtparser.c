@@ -145,6 +145,9 @@ static int get_next_token(struct tbuf *buf, char **str, int *len)
                 if (!(ch & (Alpha | Digit)))
                         break;
 
+                if (*len >= MAX_BUF_LEN)
+                        break;
+
                 cache[*len] = c;
                 *len += 1;
 
