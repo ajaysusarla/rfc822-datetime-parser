@@ -62,6 +62,41 @@ static const long charset[257] = {
         ['-' + 1] = TZSign
 };
 
+
+/*
+ * Returns the GMT offset of the struct tm 'tm', obtained from 'time'.
+ * (from Cyrus-imapd)
+ */
+int gmtoff_of(struct tm *tm, time_t time)
+{
+        struct tm local, gmt;
+        struct tm *gtm;
+        long offset;
+
+        local = *tm;
+        gtm = gmtime(&time);
+        gmt = *gtm;
+
+        /* Assume we are never more than 24 hours away. */
+        offset = local.tm_yday - gmt.tm_yday;
+        if (offset > 1) {
+                offset = -24;
+        } else if (offset < -1) {
+                offset = 24;
+        } else {
+                offset *= 24;
+        }
+
+        /* Scale in the hours and minutes; ignore seconds. */
+        offset += local.tm_hour - gmt.tm_hour;
+        offset *= 60;
+        offset += local.tm_min - gmt.tm_min;
+
+        /* Restore the data in the struct 'tm' points to */
+        *tm = local;
+        return offset * 60;
+}
+
 struct tbuf {
         const char *str;
         int len;
@@ -435,7 +470,7 @@ failed:
 /*
   TODO: Expect length of string.
  */
-int parse_time(const char *str, time_t *t)
+int parse_from_rfc5322(const char *str, time_t *t)
 {
         struct tbuf buf;
         struct tm tm;
@@ -467,3 +502,23 @@ baddate:
         return -1;
 }
 
+
+int parse_to_rfc5322(time_t date, char *buf, size_t len)
+{
+        struct tm *tm = localtime(&date);
+        long gmtoff = gmtoff_of(tm, date);
+        int gmtnegative = 0;
+
+        if (gmtoff < 0) {
+                gmtoff = -gmtoff;
+                gmtnegative = 1;
+        }
+
+        gmtoff /= 60;
+
+        return snprintf(buf, len,
+                        "%2u-%s-%u %.2u:%.2u:%.2u %c%.2lu%.2lu",
+                        tm->tm_mday, monthnames[tm->tm_mon], tm->tm_year+1900,
+                        tm->tm_hour, tm->tm_min, tm->tm_sec,
+                        gmtnegative ? '-' : '+', gmtoff/60, gmtoff%60);
+}

@@ -14,7 +14,7 @@
 
 #include "dtparser.h"
 
-#define TEST_ARR_SZ 18
+#define TEST_ARR_SZ 20
 
 int main(void)
 {
@@ -39,6 +39,8 @@ int main(void)
                 "15-Oct-95 03:19:52-Y",
                " 3-jan-2009 04.05    -0400",
                 "20 Jun 2017 00.49.38 +0000",
+                "Thu, 29 Feb 2001 11:22:33 +1100",
+                "Tue, 29 Feb 2000 11:22:33 +1100"
         };
 
         for (i=0; i < TEST_ARR_SZ; i++) {
@@ -46,9 +48,12 @@ int main(void)
                 int ret;
 
                 printf(">> Input : %s\n", input[i]);
-                ret = parse_time(input[i], &t);
+                ret = parse_from_rfc5322(input[i], &t);
                 if ( ret != -1) {
-                        printf(">> Output: %s\n", ctime(&t));
+                        char buf[33] = {0};
+                        parse_to_rfc5322(t, buf, 32);
+                        printf(">> Output       : %s\n", buf);
+                        printf(">> Output(ctime): %s\n", ctime(&t));
                 } else {
                         printf(">> Output: FAILED Parsing!\n\n");
                 }
