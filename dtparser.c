@@ -32,18 +32,28 @@ static const char separators[256] = {
 };
 
 static const char * const monthnames[12] = {
-        "JAN",
-        "FEB",
-        "MAR",
-        "APR",
-        "MAY",
-        "JUN",
-        "JUL",
-        "AUG",
-        "SEP",
-        "OCT",
-        "NOV",
-        "DEC"
+        "Jan",
+        "Feb",
+        "Mar",
+        "Apr",
+        "May",
+        "Jun",
+        "Jul",
+        "Aug",
+        "Sep",
+        "Oct",
+        "Nov",
+        "Dec"
+};
+
+static const char * const weekdays[7] = {
+        "Sun",
+        "Mon",
+        "Tue",
+        "Wed",
+        "Thu",
+        "Fri",
+        "Sat"
 };
 
 enum {
@@ -370,7 +380,9 @@ static int tokenise_and_create_tm(struct tbuf *buf, struct tm *tm,
             !(charset[str_token[0] + 1] & Alpha))
                 goto failed;
 
-        to_upper_str_in_place(&str_token, len);
+        str_token[0] = to_upper(str_token[0]);
+        str_token[1] = to_lower(str_token[1]);
+        str_token[2] = to_lower(str_token[2]);
         for (i = 0; i < 12; i++) {
                 if (memcmp(monthnames[i], str_token, 3) == 0) {
                         tm->tm_mon = i;
@@ -516,9 +528,11 @@ int parse_to_rfc5322(time_t date, char *buf, size_t len)
 
         gmtoff /= 60;
 
-        return snprintf(buf, len,
-                        "%2u-%s-%u %.2u:%.2u:%.2u %c%.2lu%.2lu",
-                        tm->tm_mday, monthnames[tm->tm_mon], tm->tm_year+1900,
-                        tm->tm_hour, tm->tm_min, tm->tm_sec,
-                        gmtnegative ? '-' : '+', gmtoff/60, gmtoff%60);
+
+    return snprintf(buf, len,
+             "%s, %02d %s %04d %02d:%02d:%02d %c%02lu%02lu",
+             weekdays[tm->tm_wday],
+             tm->tm_mday, monthnames[tm->tm_mon], tm->tm_year + 1900,
+             tm->tm_hour, tm->tm_min, tm->tm_sec,
+             gmtnegative ? '-' : '+', gmtoff/60, gmtoff%60);
 }
