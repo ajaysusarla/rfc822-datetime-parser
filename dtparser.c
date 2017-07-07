@@ -72,6 +72,12 @@ static const long charset[257] = {
         ['-' + 1] = TZSign
 };
 
+struct tbuf {
+        const char *str;
+        size_t len;
+        size_t offset;
+};
+
 
 /*
  * Returns the GMT offset of the struct tm 'tm', obtained from 'time'.
@@ -107,12 +113,6 @@ int gmtoff_of(struct tm *tm, time_t time)
         return offset * 60;
 }
 
-struct tbuf {
-        const char *str;
-        int len;
-        int offset;
-};
-
 static inline int get_next_char(struct tbuf *buf)
 {
         int c;
@@ -128,7 +128,7 @@ static inline int get_next_char(struct tbuf *buf)
 
 static inline int get_current_char(struct tbuf *buf)
 {
-        int offset = buf->offset;
+        size_t offset = buf->offset;
 
         if (offset < buf->len)
                 return buf->str[offset];
@@ -150,7 +150,7 @@ static inline int get_previous_char(struct tbuf *buf)
 /*
   TODO: Support comments as per RFC.
  */
-static int skip_ws(struct tbuf *buf, int skipcomment)
+static int skip_ws(struct tbuf *buf, int skipcomment __attribute__((unused)))
 {
         int c = buf->str[buf->offset];
 
@@ -213,7 +213,7 @@ static inline int to_int(char *str, int len)
 {
         int i, num = 0;
 
-        for (i = 0; i<len; i++) {
+        for (i = 0; i < len; i++) {
                 if (charset[str[i] + 1] & Digit)
                         num = num * 10 + (str[i] - '0');
                 else {
@@ -229,7 +229,7 @@ static inline int to_upper_str_in_place(char **str, int len)
 {
         int i;
 
-        for (i=0; i<len; i++) {
+        for (i = 0; i < len; i++) {
                 int c = str[0][i];
                 if (charset[c + 1] & LAlpha)
                         str[0][i] = str[0][i] - 32;
@@ -299,7 +299,7 @@ static int compute_tzoffset(char *str, int len, int sign)
         if (len == 4) {         /* The number timezone offset */
                 int i;
 
-                for (i = 0; i<len; i++) {
+                for (i = 0; i < len; i++) {
                         if (!(charset[str[i] + 1] & Digit))
                                 return 0;
                 }
@@ -474,15 +474,20 @@ static int tokenise_and_create_tm(struct tbuf *buf, struct tm *tm,
         /* dst */
         tm->tm_isdst = -1;
         return buf->offset;
+
 failed:
         return -1;
-
 }
 
 /*
-  TODO: Expect length of string.
+  rfc5322_date_parse():
+   Given a date time string in RFC 5322 format, this function
+   parses and converts it into time_t format.
+
+ On Success: Returns the number of characters from the date string parsed
+ On Failure: Returns -1
  */
-int parse_from_rfc5322(const char *str, time_t *t)
+int rfc5322_date_parse(const char *str, size_t len, time_t *t)
 {
         struct tbuf buf;
         struct tm tm;
@@ -496,7 +501,7 @@ int parse_from_rfc5322(const char *str, time_t *t)
         *t = 0;
 
         buf.str = str;
-        buf.len = strlen(str);
+        buf.len = len;
         buf.offset = 0;
 
         if (tokenise_and_create_tm(&buf, &tm, &tzone_offset) == -1)
@@ -515,7 +520,12 @@ baddate:
 }
 
 
-int parse_to_rfc5322(time_t date, char *buf, size_t len)
+/*
+  rfc5322_date_create():
+   Given a `time_t` date, this function creates a RFC5322 compliant date
+   string.
+ */
+int rfc5322_date_create(time_t date, char *buf, size_t len)
 {
         struct tm *tm = localtime(&date);
         long gmtoff = gmtoff_of(tm, date);

@@ -48,10 +48,10 @@ int main(void)
                 int ret;
 
                 printf(">> Input : %s\n", input[i]);
-                ret = parse_from_rfc5322(input[i], &t);
+                ret = rfc5322_date_parse(input[i], strlen(input[i]), &t);
                 if ( ret != -1) {
                         char buf[33] = {0};
-                        parse_to_rfc5322(t, buf, 32);
+                        rfc5322_date_create(t, buf, 32);
                         printf(">> Output       : %s\n", buf);
                         printf(">> Output(ctime): %s\n", ctime(&t));
                 } else {

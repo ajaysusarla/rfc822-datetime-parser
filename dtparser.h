@@ -14,7 +14,7 @@
 #include <time.h>
 #include <sys/time.h>
 
-int parse_from_rfc5322(const char *str, time_t *t);
-int parse_to_rfc5322(time_t date, char *buf, size_t len);
+int rfc5322_date_parse(const char *str, size_t len, time_t *t);
+int rfc5322_date_create(time_t date, char *buf, size_t len);
 
 #endif  /* _DT_PARSER_H */
