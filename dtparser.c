@@ -29,6 +29,7 @@ static const char separators[256] = {
         ['-']  = 1,
         ['+']  = 1,
         [':']  = 1,
+        ['.']  = 1,
 };
 
 static const char * const monthnames[12] = {
@@ -336,7 +337,8 @@ static int tokenise_and_create_tm(struct tbuf *buf, struct tm *tm,
         char *str_token = NULL;
 
         /* Skip leading WS, if any */
-        skip_ws(buf, 0);
+        if (skip_ws(buf, 0) != 1)
+                return -1;
 
         c = get_current_char(buf);
         if (c == EOB)
@@ -357,7 +359,8 @@ static int tokenise_and_create_tm(struct tbuf *buf, struct tm *tm,
                 else
                         goto failed;
 
-                skip_ws(buf, 0);
+                if (skip_ws(buf, 0) != 1)
+                        return -1;
         }
 
         /** DATE **/
@@ -418,7 +421,9 @@ static int tokenise_and_create_tm(struct tbuf *buf, struct tm *tm,
         }
 
         /** TIME **/
-        skip_ws(buf, 0);
+        if (skip_ws(buf, 0) != 1)
+                return -1;
+
         /* hour */
         if (!get_next_token(buf, &str_token, &len))
                 goto failed;
@@ -466,7 +471,9 @@ static int tokenise_and_create_tm(struct tbuf *buf, struct tm *tm,
         }
 
         /* timezone */
-        skip_ws(buf, 0);
+        if (skip_ws(buf, 0) != 1)
+                return -1;
+
         c = get_current_char(buf); /* the '+' or '-' in the timezone */
         get_next_char(buf);        /* consume '+' or '-' */
 
