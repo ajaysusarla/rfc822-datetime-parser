@@ -48,7 +48,7 @@ int main(void)
                 int ret;
 
                 printf(">> Input : %s\n", input[i]);
-                ret = rfc5322_date_parse(input[i], strlen(input[i]), &t);
+                ret = rfc5322_date_parse(input[i], strlen(input[i]), &t, true);
                 if ( ret != -1) {
                         char buf[33] = {0};
                         rfc5322_date_create(t, buf, 32);

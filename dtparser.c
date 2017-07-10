@@ -329,7 +329,7 @@ static int compute_tzoffset(char *str, int len, int sign)
  */
 
 static int tokenise_and_create_tm(struct tbuf *buf, struct tm *tm,
-                                  int *tz_offset)
+                                  int *tz_offset, bool usetime)
 {
         long ch;
         int c, i, len;
@@ -412,6 +412,11 @@ static int tokenise_and_create_tm(struct tbuf *buf, struct tm *tm,
                 tm->tm_year -= 1900;
         }
 
+        if (!usetime) {
+                *tz_offset = 0;
+                goto done;
+        }
+
         /** TIME **/
         skip_ws(buf, 0);
         /* hour */
@@ -471,6 +476,7 @@ static int tokenise_and_create_tm(struct tbuf *buf, struct tm *tm,
                 *tz_offset = compute_tzoffset(str_token, len, c);
         }
 
+done:
         /* dst */
         tm->tm_isdst = -1;
         return buf->offset;
@@ -487,11 +493,11 @@ failed:
  On Success: Returns the number of characters from the date string parsed
  On Failure: Returns -1
  */
-int rfc5322_date_parse(const char *str, size_t len, time_t *t)
+int rfc5322_date_parse(const char *str, size_t len, time_t *t, bool usetime)
 {
         struct tbuf buf;
         struct tm tm;
-        time_t tmp_gmtime;
+        time_t tmp_time;
         int tzone_offset;
 
         if (!str)
@@ -504,14 +510,18 @@ int rfc5322_date_parse(const char *str, size_t len, time_t *t)
         buf.len = len;
         buf.offset = 0;
 
-        if (tokenise_and_create_tm(&buf, &tm, &tzone_offset) == -1)
+        if (tokenise_and_create_tm(&buf, &tm, &tzone_offset, usetime) == -1)
                 goto baddate;
 
-        tmp_gmtime = timegm(&tm);
-        if (tmp_gmtime == -1)
+        if (usetime)
+                tmp_time = timegm(&tm);
+        else
+                tmp_time = mktime(&tm);
+
+        if (tmp_time == -1)
                 goto baddate;
 
-        *t = tmp_gmtime - tzone_offset * 60;
+        *t = tmp_time - tzone_offset * 60;
 
         return buf.offset;
 
