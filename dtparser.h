@@ -8,8 +8,8 @@
  * Copyright (c) 2017 Partha Susarla <mail@spartha.org>
  */
 
-#ifndef _DT_PARSER_H
-#define _DT_PARSER_H
+#ifndef _RFC5322_DT_PARSER_H
+#define _RFC5322_DT_PARSER_H
 
 #include <time.h>
 #include <sys/time.h>
@@ -18,4 +18,4 @@
 int rfc5322_date_parse(const char *str, size_t len, time_t *t, bool usetime);
 int rfc5322_date_create(time_t date, char *buf, size_t len);
 
-#endif  /* _DT_PARSER_H */
+#endif  /* _RF5322_DT_PARSER_H */
